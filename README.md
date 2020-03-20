@@ -111,12 +111,11 @@ you use the published checksums to verify integrity.
     time.
 
 - Login to Vault.
-  Because the user's personal token of Huawei Cloud is very long, so it
-  recommends to save the token in a file first before passing it to vault.
 
   ```sh
-  # save token to ./token.txt
-  $ token=$(cat ./token.txt); vault write auth/hw/login role=dev-role token=$token
+  # It recommends saving token to a file(./token.txt), because token's length is very long.
+
+  $ token=$(cat ./token.txt); vault write auth/auth-hw/login role=dev-role token=$token
   ```
 
   The response will be a standard auth response with some token metadata:
