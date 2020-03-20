@@ -21,7 +21,7 @@ This authentication model places Vault in the middle of a call between a client 
 
 The basic mechanism of operation is per-role.
 
-Roles are associated with a Huawei Cloud account and user. When a user login to Vault, Vault matches the account and user name with that of a pre-created role in Vault. It then checks what policies have been associated with the role, and grants a token accordingly.
+Roles are associated with a Huawei Cloud account and user. When logining to Vault, it matches the account and user name retrived from token with that of a pre-created role in Vault. It then checks what policies have been associated with the role, and grants a token accordingly.
 
 ## Usage
 
@@ -29,17 +29,17 @@ This guide assumes some familiarity with Vault and Vault's plugin
 ecosystem. You must have a Vault server already running, unsealed, and
 authenticated.
 
-1. Download and decompress the latest plugin binary from the Releases tab on
+- Download and decompress the latest plugin binary from the Releases tab on
 GitHub. Alternatively you can compile the plugin from source, if you're into
 that kind a thing.
 
-1. Move the compiled plugin into Vault's configured `plugin_directory`.
+- Move the compiled plugin into Vault's configured `plugin_directory`.
 
   ```sh
   $ mv vault-plugin-auth-huaweicloud /etc/vault/plugins/
   ```
 
-1. Calculate the SHA256 of the plugin and register it in Vault's plugin catalog.
+- Calculate the SHA256 of the plugin and register it in Vault's plugin catalog.
 If you are downloading the pre-compiled binary, it is highly recommended that
 you use the published checksums to verify integrity.
 
@@ -51,13 +51,13 @@ you use the published checksums to verify integrity.
       command="vault-plugin-auth-huaweicloud"
   ```
 
-1. Mount the auth method.
+- Mount the auth method.
 
   ```sh
   $ vault auth enable auth-hw
   ```
 
-1. Create role.
+- Create role.
 
   ```sh
   $ vault write auth/auth-hw/role/dev-role \
@@ -65,49 +65,57 @@ you use the published checksums to verify integrity.
       user="user"
   ```
 
-  - `access_token` - _(required)_ oauth access token for the Slack application.
-    This comes from Slack when you install the application into your team.
-    This is used to communicate with Slack's API on your application's behalf.
+  - `role` `(string: <required>)` - Name of the role.
 
-  - `teams` - _(required)_ comma-separated list of names or IDs of the teams
-    (workspaces) for which to allow authentication. Slack is currently in the
-    process of renaming "teams" to "workspaces", and it's confusing. We
-    apologize. Team names and IDs are case sensitive.
+  - `account` `(string)` - Name of Huawei Cloud account.
 
-  - `allow_bot_users` - _(default: false)_ allow bots to use their tokens to
-    authenticate. By default, bots are not allowed to authenticate.
+  - `user` `(string)` - Name of Huawei Cloud user.
 
-  - `allow_non_2fa` - _(default: true)_ allow users which do not have 2FA/MFA
-    enabled on their Slack account to authenticate. By default, users must have
-    2FA enabled on their Slack account to authenticate to Vault. Users must
-    still be mapped to an appropriate policy to receive a token.
+  - `token_ttl` `(integer: 0 or string: "")` - The incremental lifetime for
+    generated tokens. This current value of this will be referenced at renewal
+    time.
 
-  - `allow_restricted_users` - _(default: false)_ allow multi-channel guests to
-    authenticate. By default, restricted users will not be given a token, even
-    if they are mapped to policies.
+  - `token_max_ttl` `(integer: 0 or string: "")` - The maximum lifetime for
+    generated tokens. This current value of this will be referenced at renewal
+    time.
 
-  - `allow_ultra_restricted_users` - _(default: false)_ allow single-channel
-    guests to authenticate. By default, restricted users will not be given a
-    token, even if they are mapped to policies.
+  - `token_policies` `(array: [] or comma-delimited string: "")` - List of
+    policies to encode onto generated tokens. Depending on the auth method, this
+    list may be supplemented by user/group/other values.
 
-  - `anyone_policies` - _(default: "")_ comma-separated list of policies to
-    apply to everyone. If set, **any Slack member** will be able to authenticate
-    to Vault and receive a token with these policies. By default, users must be
-    a member of a group, usergroup, or mapped directly.
+  - `token_bound_cidrs` `(array: [] or comma-delimited string: "")` - List of
+    CIDR blocks; if set, specifies blocks of IP addresses which can authenticate
+    successfully, and ties the resulting token to these blocks as well.
 
-  Additionally, you can tune the TTLs:
+  - `token_explicit_max_ttl` `(integer: 0 or string: "")` - If set, will encode
+    an [explicit max TTL](/docs/concepts/tokens#token-time-to-live-periodic-tokens-and-explicit-max-ttls)
+    onto the token. This is a hard cap even if `token_ttl` and `token_max_ttl`
+    would otherwise allow a renewal.
 
-  - `ttl` - minimum TTL for tokens created from this authentication.
+  - `token_no_default_policy` `(bool: false)` - If set, the `default` policy will
+    not be set on generated tokens; otherwise it will be added to the policies set
+    in `token_policies`.
 
-  - `max_ttl` - maximum TTL for tokens created from this authentication.
+  - `token_num_uses` `(integer: 0)` - The maximum number of times a generated
+    token may be used (within its lifetime); 0 means unlimited.
 
-1. Login to Vault.
-  Because the user's personal token of Huawei Cloud is very long, so it
-  recommends to save the token in a file first, then pass it to vault.
+  - `token_period` `(integer: 0 or string: "")` - The
+    [period](/docs/concepts/tokens#token-time-to-live-periodic-tokens-and-explicit-max-ttls),
+    if any, to set on the token.
+
+  - `token_type` `(string: "")` - The type of token that should be generated. Can
+    be `service`, `batch`, or `default` to use the mount's tuned default (which
+    unless changed will be `service` tokens). For token store roles, there are two
+    additional possibilities: `default-service` and `default-batch` which specify
+    the type to return unless the client requests a different type at generation
+    time.
+
+- Login to Vault.
 
   ```sh
-  # save token to ./token.txt
-  $ token=$(cat ./token.txt); vault write auth/hw/login role=dev-role token=$token
+  # It recommends saving token to a file(./token.txt), because token's length is very long.
+
+  $ token=$(cat ./token.txt); vault write auth/auth-hw/login role=dev-role token=$token
   ```
 
   The response will be a standard auth response with some token metadata:
