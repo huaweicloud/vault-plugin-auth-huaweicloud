@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/tokenutil"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -17,11 +16,16 @@ func pathRole(b *backend) *framework.Path {
 		Fields: map[string]*framework.FieldSchema{
 			"role": {
 				Type:        framework.TypeLowerCaseString,
+				Required:    true,
 				Description: "The name of the role as it should appear in Vault.",
 			},
-			"identity": {
+			"account": {
 				Type:        framework.TypeString,
-				Description: "The user identity to bind to this role.",
+				Description: "The user's Huawei Cloud account name",
+			},
+			"user": {
+				Type:        framework.TypeString,
+				Description: "The name of user belongs to the Huawei Cloud account",
 			},
 		},
 		ExistenceCheck: b.operationRoleExistenceCheck,
@@ -71,11 +75,14 @@ func (b *backend) operationRoleCreate(ctx context.Context, req *logical.Request,
 		return nil, err
 	}
 	if role != nil {
-		return nil, fmt.Errorf("role %s is already exist", roleName)
+		return nil, fmt.Errorf("role(%s) is already exist", roleName)
 	}
 
-	if _, ok := data.GetOk("identity"); !ok {
-		return nil, errors.New("the identity is required to create a role")
+	if _, ok := data.GetOk("account"); !ok {
+		return nil, errors.New("the account is required to create a role")
+	}
+	if _, ok := data.GetOk("user"); !ok {
+		return nil, errors.New("the user is required to create a role")
 	}
 
 	role = &roleEntry{RoleName: roleName}
@@ -95,19 +102,19 @@ func (b *backend) operationRoleUpdate(ctx context.Context, req *logical.Request,
 		return nil, err
 	}
 	if role == nil {
-		return nil, fmt.Errorf("no role %s found to update", roleName)
+		return nil, fmt.Errorf("role(%s) is not found to update", roleName)
 	}
 
 	return b.createUpdate(role, ctx, req, data)
 }
 
 func (b *backend) createUpdate(role *roleEntry, ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	if i, ok := data.GetOk("identity"); ok {
-		identity, err := newIdentity(i.(string))
-		if err != nil {
-			return nil, errwrap.Wrapf(fmt.Sprintf("unable to parse identity %s: {{err}}", i), err)
-		}
-		role.Identity = *identity
+	if account, ok := data.GetOk("account"); ok {
+		role.Identity.Account = account.(string)
+	}
+
+	if user, ok := data.GetOk("user"); ok {
+		role.Identity.User = user.(string)
 	}
 
 	// Get tokenutil fields
@@ -129,7 +136,7 @@ func (b *backend) createUpdate(role *roleEntry, ctx context.Context, req *logica
 
 	if role.TokenTTL > b.System().MaxLeaseTTL() {
 		resp := &logical.Response{}
-		resp.AddWarning(fmt.Sprintf("ttl of %d exceeds the system max ttl of %d, the latter will be used during login",
+		resp.AddWarning(fmt.Sprintf("ttl(%d) exceeds the system max ttl(%d), the latter will be used during login",
 			role.TokenTTL, b.System().MaxLeaseTTL()))
 		return resp, nil
 	}
@@ -150,10 +157,7 @@ func (b *backend) operationRoleRead(ctx context.Context, req *logical.Request, d
 }
 
 func (b *backend) operationRoleDelete(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	if err := req.Storage.Delete(ctx, "role/"+data.Get("role").(string)); err != nil {
-		return nil, err
-	}
-	return nil, nil
+	return nil, req.Storage.Delete(ctx, "role/"+data.Get("role").(string))
 }
 
 func (b *backend) operationRoleList(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
@@ -187,17 +191,13 @@ Create a role and associate policies to it.
 const pathRoleDesc = `
 A precondition for login is that a role should be created in the backend.
 The login endpoint takes in the role name against which the instance
-should be validated. After authenticating the instance, the authorization
-for the instance to access Vault's resources is determined by the policies
-that are associated to the role though this endpoint.
-
-Also, a 'max_ttl' can be configured in this endpoint that determines the maximum
-duration for which a login can be renewed. Note that the 'max_ttl' has an upper
-limit of the 'max_ttl' value on the backend's mount. The same applies to the 'ttl'.
+should be validated. The authorization for the instance to access Vault's
+resources is determined by the policies that are associated to the role
+though this endpoint.
 `
 
 const pathListRolesHelpSyn = `
-Lists all the roles that are registered with Vault.
+Lists all the roles that are registered to Vault.
 `
 
 const pathListRolesHelpDesc = `

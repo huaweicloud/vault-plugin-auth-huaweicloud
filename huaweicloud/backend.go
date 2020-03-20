@@ -41,6 +41,6 @@ type backend struct {
 }
 
 const backendHelp = `
-That Huawei Cloud auth method allows entities to authenticate based on their
-identity and pre-configured roles.
+The Huawei Cloud auth method allows entities to authenticate based on their
+personal token and pre-configured role.
 `
