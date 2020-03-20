@@ -21,7 +21,7 @@ This authentication model places Vault in the middle of a call between a client 
 
 The basic mechanism of operation is per-role.
 
-Roles are associated with a Huawei Cloud account and user. When a user login to Vault, Vault matches the account and user name with that of a pre-created role in Vault. It then checks what policies have been associated with the role, and grants a token accordingly.
+Roles are associated with a Huawei Cloud account and user. When logining to Vault, it matches the account and user name retrived from token with that of a pre-created role in Vault. It then checks what policies have been associated with the role, and grants a token accordingly.
 
 ## Usage
 
@@ -29,17 +29,17 @@ This guide assumes some familiarity with Vault and Vault's plugin
 ecosystem. You must have a Vault server already running, unsealed, and
 authenticated.
 
-1. Download and decompress the latest plugin binary from the Releases tab on
+- Download and decompress the latest plugin binary from the Releases tab on
 GitHub. Alternatively you can compile the plugin from source, if you're into
 that kind a thing.
 
-1. Move the compiled plugin into Vault's configured `plugin_directory`.
+- Move the compiled plugin into Vault's configured `plugin_directory`.
 
   ```sh
   $ mv vault-plugin-auth-huaweicloud /etc/vault/plugins/
   ```
 
-1. Calculate the SHA256 of the plugin and register it in Vault's plugin catalog.
+- Calculate the SHA256 of the plugin and register it in Vault's plugin catalog.
 If you are downloading the pre-compiled binary, it is highly recommended that
 you use the published checksums to verify integrity.
 
@@ -51,13 +51,13 @@ you use the published checksums to verify integrity.
       command="vault-plugin-auth-huaweicloud"
   ```
 
-1. Mount the auth method.
+- Mount the auth method.
 
   ```sh
   $ vault auth enable auth-hw
   ```
 
-1. Create role.
+- Create role.
 
   ```sh
   $ vault write auth/auth-hw/role/dev-role \
@@ -101,7 +101,7 @@ you use the published checksums to verify integrity.
 
   - `max_ttl` - maximum TTL for tokens created from this authentication.
 
-1. Login to Vault.
+- Login to Vault.
   Because the user's personal token of Huawei Cloud is very long, so it
   recommends to save the token in a file first, then pass it to vault.
 
