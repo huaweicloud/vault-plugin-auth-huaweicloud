@@ -7,14 +7,14 @@ import (
 type roleEntry struct {
 	tokenutil.TokenParams
 
+	RoleName string   `json:"role_name"`
 	Identity identity `json:"identity"`
-	RoleName string `json:"role_name"`
 }
 
 func (r *roleEntry) ToResponseData() map[string]interface{} {
 	d := map[string]interface{}{
-		"identity": r.Identity.toString(),
 		"role_name": r.RoleName,
+		"identity":  r.Identity.toString(),
 	}
 
 	r.PopulateTokenData(d)

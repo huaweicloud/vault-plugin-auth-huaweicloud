@@ -3,10 +3,8 @@ package huaweicloud
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-cleanhttp"
@@ -25,8 +23,7 @@ func pathLogin(b *backend) *framework.Path {
 			"role": {
 				Type: framework.TypeString,
 				Description: `Name of the role against which the login is being attempted.
-If 'role' is not specified, then the login endpoint looks for a role name in the ARN returned by 
-the GetCallerIdentity request. If a matching role is not found, login fails.`,
+If a matching role is not found, login fails.`,
 			},
 			"token": {
 				Type:        framework.TypeString,
@@ -110,10 +107,9 @@ func (b *backend) pathLoginRenew(ctx context.Context, req *logical.Request, data
 	if user == "" {
 		return nil, errors.New("unable to retrieve user from metadata during renewal")
 	}
-
-	roleName, ok := req.Auth.Metadata["role_name"]
-	if !ok {
-		return nil, errors.New("error retrieving role_name during renewal")
+	roleName := req.Auth.Metadata["role_name"]
+	if roleName == "" {
+		return nil, errors.New("unable to retrieve role name during renewal")
 	}
 
 	role, err := readRole(ctx, req.Storage, roleName)
@@ -121,7 +117,7 @@ func (b *backend) pathLoginRenew(ctx context.Context, req *logical.Request, data
 		return nil, err
 	}
 	if role == nil {
-		return nil, fmt.Errorf("role entry %s not found", roleName)
+		return nil, fmt.Errorf("role entry(%s) is not found", roleName)
 	}
 
 	identity := &identity{Account: account, User: user}
@@ -136,25 +132,7 @@ func (b *backend) pathLoginRenew(ctx context.Context, req *logical.Request, data
 	return resp, nil
 }
 
-func readToken(f string) (string, error) {
-	content, err := ioutil.ReadFile(f)
-	if err != nil {
-		return "", errwrap.Wrapf(fmt.Sprintf("error reading token file %s: {{err}}", f), err)
-	}
-
-	var s struct {
-		Token string
-	}
-	json.Unmarshal(content, &s)
-	return s.Token, nil
-}
-
-func getTokenInfo(f string) (*tokens.User, error) {
-	token, err := readToken(f)
-	if err != nil {
-		return nil, err
-	}
-
+func getTokenInfo(token string) (*tokens.User, error) {
 	endpoint := "https://iam.myhwclouds.com:443/v3"
 	client, err := huaweisdk.NewClient(endpoint)
 	if err != nil {
